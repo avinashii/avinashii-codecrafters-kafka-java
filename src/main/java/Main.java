@@ -23,10 +23,10 @@ public class Main {
        // ensures that we don't run into 'Address already in use' errors
        serverSocket.setReuseAddress(true);
        // Wait for connection from client.
-       clientSocket = serverSocket.accept();
        
        while(true) {
     	   
+    	   clientSocket = serverSocket.accept();
 	       InputStream in = clientSocket.getInputStream();
 	       OutputStream out = clientSocket.getOutputStream();
 	//       out.write(new byte[] {1,2,3,4});
