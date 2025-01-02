@@ -52,10 +52,10 @@ public class Main {
 	    	   
 	    	   bos.write(new byte[] {0,0});
 	    	   
-	    	   bos.write(2);
+	    	   bos.write(1);
 	    	   
 	    	   
-//	    	   bos.write(new byte[] {0,18});
+	    	   bos.write(new byte[] {0,18});
 	    	   
 	    	   bos.write(new byte[] {0,0});
 	
