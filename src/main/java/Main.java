@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -20,9 +21,22 @@ public class Main {
        serverSocket.setReuseAddress(true);
        // Wait for connection from client.
        clientSocket = serverSocket.accept();
+       InputStream in = clientSocket.getInputStream();
        OutputStream out = clientSocket.getOutputStream();
-       out.write(new byte[] {1,2,3,4});
-       out.write(new byte[] {0,0,0,7});
+//       out.write(new byte[] {1,2,3,4});
+//       out.write(new byte[] {0,0,0,7});
+       
+       byte buffer[] = new byte[1024];
+       int byteread;
+       
+       if((byteread = in.read(buffer)) != -1) {
+    	   byte[] output = new byte[] {0,0,0,0,0,0,0,0};
+    	   System.arraycopy(buffer,8, output, 4, 4);
+    	   out.write(output);
+       }
+       else {
+    	   System.out.println("Nothing to read froom intput stream ");
+       }
 
 
      } catch (IOException e) {
