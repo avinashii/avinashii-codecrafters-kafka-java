@@ -1,9 +1,11 @@
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public class Main {
   public static void main(String[] args){
@@ -36,34 +38,47 @@ public class Main {
        
        
        
-       ByteBuffer responseBuffer = ByteBuffer.allocate(1024);
-       responseBuffer.put(correlationId);
+       var bos = new ByteArrayOutputStream();
+       
+       bos.write(correlationId);
        
        if(shortApiVersion < 0 || shortApiVersion > 4) {
-    	   responseBuffer.put(new byte[] {0,35});
+    	   bos.write(new byte[] {0,35});
        }
        else {
     	   
-    	   responseBuffer.putInt(0);
+    	   bos.write(new byte[] {0,0});
+    	   
+    	   bos.write(2);
     	   
     	   
-    	   responseBuffer.putShort((short) 0);
+    	   bos.write(new byte[] {0,18});
     	   
-    	   responseBuffer.putInt(1);
-    	   
-    	   responseBuffer.putShort((short) 18);
-    	   
-    	   responseBuffer.putShort((short) 0);
-    	   
-    	   responseBuffer.putShort((short) 4);
-    	          
+    	   bos.write(new byte[] {0,3});
+
+    	   bos.write(new byte[] {0,4});
+
+
+    	   bos.write(0);
+    	   bos.write(new byte[] {0,0,0,0});
+    	   bos.write(0);
+
        }
        
-       int responseLength = responseBuffer.position();
        
-       responseBuffer.putInt(0 ,responseLength-4);
-       out.write(responseBuffer.array(),0,responseLength);
-
+       
+       int size = bos.size();
+       
+       byte[] sizeByte = ByteBuffer.allocate(4).putInt(size).array();
+       
+      var response = bos.toByteArray();
+      
+      System.out.println(Arrays.toString(sizeByte));
+      System.out.println(Arrays.toString(response));
+      
+      out.write(sizeByte);
+      out.write(response);
+      out.flush();
 
      } catch (IOException e) {
        System.out.println("IOException: " + e.getMessage());
