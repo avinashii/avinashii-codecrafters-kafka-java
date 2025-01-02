@@ -57,7 +57,8 @@ public class Main {
                     bos.write(new byte[]{0, 3});  // MinVersion
                     bos.write(new byte[]{0, 4});  // MaxVersion
 
-                    bos.write(0);               // Tagged fields (empty)
+                    // Tagged fields (use compact encoding or skip if none)
+                    bos.write(0);               // No tagged fields
                 }
 
                 // Add response size
