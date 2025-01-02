@@ -33,12 +33,36 @@ public class Main {
        byte[] correlationId= in.readNBytes(4);
        
        short shortApiVersion = ByteBuffer.wrap(apiVersion).getShort();
-       out.write(length);
-       out.write(correlationId);
+       
+       
+       
+       ByteBuffer responseBuffer = ByteBuffer.allocate(1024);
+       responseBuffer.put(correlationId);
        
        if(shortApiVersion < 0 || shortApiVersion > 4) {
-    	   out.write(new byte[] {0,35});
+    	   responseBuffer.put(new byte[] {0,35});
        }
+       else {
+    	   
+    	   responseBuffer.putInt(0);
+    	   
+    	   
+    	   responseBuffer.putShort((short) 0);
+    	   
+    	   responseBuffer.putInt(1);
+    	   
+    	   responseBuffer.putShort((short) 18);
+    	   
+    	   responseBuffer.putShort((short) 0);
+    	   
+    	   responseBuffer.putShort((short) 4);
+    	          
+       }
+       
+       int responseLength = responseBuffer.position();
+       
+       responseBuffer.putInt(0 ,responseLength-4);
+       out.write(responseBuffer.array(),0,responseLength);
 
 
      } catch (IOException e) {
