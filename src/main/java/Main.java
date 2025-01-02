@@ -5,74 +5,96 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public class Main {
-    public static void main(String[] args) {
-        int port = 9092;
-        System.err.println("Logs from your program will appear here!");
+  public static void main(String[] args){
+    // You can use print statements as follows for debugging, they'll be visible when running tests.
+    System.err.println("Logs from your program will appear here!");
 
-        try (ServerSocket serverSocket = new ServerSocket(port)) {
-            serverSocket.setReuseAddress(true);
-
-            while (true) {
-                try (Socket clientSocket = serverSocket.accept()) {
-                    handleClient(clientSocket);
-                } catch (IOException e) {
-                    System.err.println("Error handling client: " + e.getMessage());
-                }
-            }
-        } catch (IOException e) {
-            System.err.println("Server error: " + e.getMessage());
-        }
-    }
-
-    private static void handleClient(Socket clientSocket) throws IOException {
-        InputStream in = clientSocket.getInputStream();
-        OutputStream out = clientSocket.getOutputStream();
-
-        while (true) {
-            try {
-                // Read request
-                byte[] lengthBytes = in.readNBytes(4);
-                int length = ByteBuffer.wrap(lengthBytes).getInt();
-
-                byte[] apiKeyBytes = in.readNBytes(2);
-                byte[] apiVersionBytes = in.readNBytes(2);
-                byte[] correlationIdBytes = in.readNBytes(4);
-
-                short apiVersion = ByteBuffer.wrap(apiVersionBytes).getShort();
-
-                // Prepare response
-                var bos = new ByteArrayOutputStream();
-                bos.write(correlationIdBytes);
-
-                if (apiVersion < 0 || apiVersion > 4) {
-                    bos.write(new byte[]{0, 35}); // Error: unsupported version
-                } else {
-                    bos.write(new byte[]{0, 0}); // No error
-                    bos.write(1);               // Number of APIs (1)
-
-                    // API key entry for ApiVersions
-                    bos.write(new byte[]{0, 18}); // ApiKey 18
-                    bos.write(new byte[]{0, 3});  // MinVersion
-                    bos.write(new byte[]{0, 4});  // MaxVersion
-
-                    // Tagged fields (use compact encoding or skip if none)
-                    bos.write(0);               // No tagged fields
-                }
-
-                // Add response size
-                int size = bos.size();
-                byte[] sizeBytes = ByteBuffer.allocate(4).putInt(size).array();
-
-                // Write response
-                out.write(sizeBytes);
-                out.write(bos.toByteArray());
-                out.flush();
-            } catch (IOException e) {
-                System.err.println("Client disconnected or error: " + e.getMessage());
-                break; // Exit the loop if client disconnects
-            }
-        }
-    }
+    // Uncomment this block to pass the first stage
+    // 
+     ServerSocket serverSocket = null;
+     Socket clientSocket = null;
+     int port = 9092;
+     try {
+       serverSocket = new ServerSocket(port);
+       // Since the tester restarts your program quite often, setting SO_REUSEADDR
+       // ensures that we don't run into 'Address already in use' errors
+       serverSocket.setReuseAddress(true);
+       // Wait for connection from client.
+       clientSocket = serverSocket.accept();
+       
+       while(true) {
+    	   
+	       InputStream in = clientSocket.getInputStream();
+	       OutputStream out = clientSocket.getOutputStream();
+	//       out.write(new byte[] {1,2,3,4});
+	//       out.write(new byte[] {0,0,0,7});
+	       
+	       byte[] length = in.readNBytes(4);
+	       byte[] apiKey = in.readNBytes(2);
+	       byte[] apiVersion = in.readNBytes(2);
+	       byte[] correlationId= in.readNBytes(4);
+	       
+	       short shortApiVersion = ByteBuffer.wrap(apiVersion).getShort();
+	       
+	       
+	       
+	       var bos = new ByteArrayOutputStream();
+	       
+	       bos.write(correlationId);
+	       
+	       if(shortApiVersion < 0 || shortApiVersion > 4) {
+	    	   bos.write(new byte[] {0,35});
+	       }
+	       else {
+	    	   
+	    	   bos.write(new byte[] {0,0});
+	    	   
+	    	   bos.write(2);
+	    	   
+	    	   
+	    	   bos.write(new byte[] {0,18});
+	    	   
+	    	   bos.write(new byte[] {0,3});
+	
+	    	   bos.write(new byte[] {0,4});
+	
+	
+	    	   bos.write(0);
+	    	   bos.write(new byte[] {0,0,0,0});
+	    	   bos.write(0);
+	
+	       }
+	       
+	       
+	       
+	       int size = bos.size();
+	       
+	       byte[] sizeByte = ByteBuffer.allocate(4).putInt(size).array();
+	       
+	      var response = bos.toByteArray();
+	      
+	      System.out.println(Arrays.toString(sizeByte));
+	      System.out.println(Arrays.toString(response));
+	      
+	      out.write(sizeByte);
+	      out.write(response);
+	
+	      out.flush();
+	
+       }
+     } catch (IOException e) {
+       System.out.println("IOException: " + e.getMessage());
+     } finally {
+       try {
+         if (clientSocket != null) {
+           clientSocket.close();
+         }
+       } catch (IOException e) {
+         System.out.println("IOException: " + e.getMessage());
+       }
+     }
+  }
 }
