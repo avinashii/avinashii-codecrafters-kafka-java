@@ -24,14 +24,18 @@ public class Main {
 
         if (args.length == 1) {
 
-            System.out.println(args[0]);
-
+            System.out.println("Hree" +" "+args[0]);
+            
+            
             path = Paths.get(args[0]);
 
             if (Files.exists(path)) KafkaLoader.load(path, storage);
         }
 
         final int port = 9092;
+        
+        System.out.print("here: ");
+
 
         System.out.println("port: %s".formatted(port));
 
