@@ -58,13 +58,19 @@ public class Kafka {
 
         int bodySize = 33 + topicBytes.length;
         ByteBuffer body = ByteBuffer.allocate(bodySize);
+        byte[] hardcodedUUID = {
+        	    0x00, 0x00, 0x00, 0x00, // Most significant bits (first 8 bytes)
+        	    0x00, 0x00, 0x40, 0x00,
+        	    (byte) 0x80, 0x00, // Least significant bits (next 8 bytes)
+        	    0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0x88
+        	};
 
         body.putInt(0); // throttle time 4 bytes
         body.put((byte) 2); // array length 1 byte
         body.putShort((short) 0); // errorCode 2 bytes
         body.put((byte) ((byte) topicBytes.length + 1)); // 1 byte
         body.put(topicBytes); // topic length bytes
-        body.put(new byte[16]); // 16 bytes
+        body.put(hardcodedUUID); // 16 bytes
         body.put((byte) 0); // 1 byte
         body.put((byte) 1); // 1 byte
         body.putInt(0x00000DF8); // 4 bytes
