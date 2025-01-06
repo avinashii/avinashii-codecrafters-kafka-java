@@ -29,7 +29,7 @@ public class Deserializer {
 		
 		return switch(value.getType()) {
 			case ApiVersion->parserApiVersion(value);
-			case DescribeTopic -> parserDescribeType(value);
+			case DescribeTopic -> parserDescribeTopic(value);
 			case Fetch ->null;
 			case Unknown ->value;
 		};
@@ -42,7 +42,7 @@ public class Deserializer {
 		return value;
 	}
 
-	private KValue parserDescribeType(KValue value) throws IOException {
+	private KValue parserDescribeTopic(KValue value) throws IOException {
 		// TODO Auto-generated method stub
 		final var arrayLength = readLength()-1;
 		
