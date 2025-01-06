@@ -1,105 +1,109 @@
 package kafka;
 
-import java.io.FileInputStream;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HexFormat;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import type.KValue;
 
-import kafka.protocol.io.DataInputStream;
-import kafka.record.Batch;
-import kafka.record.Record;
-import kafka.record.Record.Partition;
-import kafka.record.Record.Topic;
-import lombok.SneakyThrows;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 public class Kafka {
 
-	private final String logsRoot;
-	private final Map<UUID, Record.Topic> topicPerId;
-	private final Map<String, Record.Topic> topicPerName;
-	private final Map<UUID, List<Record.Partition>> partitionsPerTopicId;
+    public byte[] evaluate(KValue value) {
 
-	public Kafka(String logsRoot, List<Topic> topics, List<Partition> records) {
-		this.logsRoot = logsRoot;
+        return switch (value.getType()) {
+            case ApiVersion -> createApiResponse(value);
+            case DescribeTopic -> createDescribeResponse(value);
+            case Fetch -> null;
+            case Unknown -> null;
+        };
+    }
 
-		this.topicPerId = topics
-			.stream()
-			.collect(Collectors.toMap(
-				Record.Topic::id,
-				Function.identity()
-			));
+    private byte[] createDescribeResponse(KValue value) {
+        final var header = createHeader(value.getCorrelationId());
+        final var body = createDescribeBody(value);
 
-		this.topicPerName = topics
-			.stream()
-			.collect(Collectors.toMap(
-				Record.Topic::name,
-				Function.identity()
-			));
+        int totalSize = header.length + 1 + body.length;
+        ByteBuffer response = ByteBuffer.allocate(4 + totalSize);
 
-		this.partitionsPerTopicId = records
-			.stream()
-			.sorted(Comparator.comparing(Record.Partition::topicId))
-			.collect(Collectors.groupingBy(
-				Record.Partition::topicId
-			));
-	}
+        response.putInt(totalSize);
+        response.put(header);
+        response.put((byte) 0); // tab buffer
+        response.put(body);
 
-	public Record.Topic getTopic(UUID id) {
-		return topicPerId.get(id);
-	}
+        return response.array();
+    }
 
-	public Record.Topic getTopic(String name) {
-		return topicPerName.get(name);
-	}
+    private byte[] createApiResponse(KValue value) {
+        final var header = createHeader(value.getCorrelationId());
+        final var body = createBody(value);
 
-	public List<Record.Partition> getPartitions(UUID topicId) {
-		return partitionsPerTopicId.getOrDefault(topicId, Collections.emptyList());
-	}
+        int totalSize = header.length + body.length;
+        ByteBuffer response = ByteBuffer.allocate(4 + totalSize);
 
-	@SneakyThrows
-	public byte[] getRecordData(String topicName, int partitionIndex) {
-		final var path = logsRoot + "%s-%s/00000000000000000000.log".formatted(topicName, partitionIndex);
+        response.putInt(totalSize);
+        response.put(header);
+        response.put(body);
 
-		try (final var fileInputStream = new FileInputStream(path)) {
-			return fileInputStream.readAllBytes();
-		}
-	}
+        return response.array();
+    }
 
-	@SneakyThrows
-	public static Kafka load(String logsRoot) {
-		final var path = logsRoot + "__cluster_metadata-0/00000000000000000000.log";
+    private byte[] createHeader(int correlationId) {
+        ByteBuffer header = ByteBuffer.allocate(4);
+        header.putInt(correlationId);
 
-		try (final var fileInputStream = new FileInputStream(path)) {
-			System.out.println(HexFormat.ofDelimiter("").formatHex(fileInputStream.readAllBytes()));
-		}
+        return header.array();
+    }
 
-		final var topics = new ArrayList<Record.Topic>();
-		final var partitions = new ArrayList<Record.Partition>();
+    private byte[] createDescribeBody(KValue value) {
+        byte[] topicBytes = value.getTopic().getBytes(StandardCharsets.UTF_8);
 
-		try (final var fileInputStream = new FileInputStream(path)) {
-			final var input = new DataInputStream(fileInputStream);
+        int bodySize = 33 + topicBytes.length;
+        ByteBuffer body = ByteBuffer.allocate(bodySize);
 
-			while (fileInputStream.available() != 0) {
-				final var batch = Batch.deserialize(input);
-				System.out.println(batch);
+        body.putInt(0); // throttle time 4 bytes
+        body.put((byte) 2); // array length 1 byte
+        body.putShort((short) 0); // errorCode 2 bytes
+        body.put((byte) ((byte) topicBytes.length + 1)); // 1 byte
+        body.put(topicBytes); // topic length bytes
+        body.put(new byte[16]); // 16 bytes
+        body.put((byte) 0); // 1 byte
+        body.put((byte) 1); // 1 byte
+        body.putInt(0x00000DF8); // 4 bytes
+        body.put((byte) 0); // tag buffer 1 byte
+        body.put((byte) 0xFF); // cursor 1 byte
+        body.put((byte) 0); // tag buffer 1 byte
 
-				for (final var record : batch.records()) {
-					if (record instanceof Record.Topic topic) {
-						topics.add(topic);
-					} else if (record instanceof Record.Partition partition) {
-						partitions.add(partition);
-					}
-				}
-			}
-		}
+        return body.array();
+    }
 
-		return new Kafka(logsRoot, topics, partitions);
-	}
+    private byte[] createBody(KValue value) {
+        final var errorCode = value.getErrorCode();
+
+        ByteBuffer body = ByteBuffer.allocate(28);
+        body.putShort((short) errorCode);
+
+        if (errorCode == 0) {
+            final var apiKey = value.getApiKey();
+            final var apiVersion = value.getApiVersion();
+
+            body.put((byte) 3);
+            body.putShort((short) apiKey);
+            body.putShort((short) 2);
+            body.putShort((short) apiVersion);
+            body.put((byte) 0);
+            body.putShort((short) 75);
+            body.putShort((short) 0);
+            body.putShort((short) 0);
+            body.put((byte) 0);
+            body.putInt(0);
+            body.put((byte) 0);
+        }
+
+        int position = body.position();
+        byte[] bodyBytes = new byte[position];
+        body.flip();
+        body.get(bodyBytes);
+
+        return bodyBytes;
+    }
 
 }

@@ -1,54 +1,54 @@
-package kafka.protocol.io;
+package io;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 
-import lombok.SneakyThrows;
-
 public class DataInputStream implements DataInput {
-
+	
 	private final java.io.DataInputStream delegate;
-
+	
 	public DataInputStream(InputStream in) {
 		this.delegate = new java.io.DataInputStream(in);
 	}
 
-	@SneakyThrows
-	public ByteBuffer readNBytes(int n) {
+	@Override
+	public ByteBuffer readNBytes(int n) throws IOException {
+		// TODO Auto-generated method stub
 		return ByteBuffer.wrap(delegate.readNBytes(n));
+		
 	}
 
-	@SneakyThrows
 	@Override
-	public byte peekByte() {
+	public byte peekByte() throws IOException {
+		// TODO Auto-generated method stub
 		delegate.mark(1);
 		byte value = delegate.readByte();
 		delegate.reset();
-
 		return value;
 	}
 
-	@SneakyThrows
 	@Override
-	public byte readSignedByte() {
+	public byte readSignedByte() throws IOException {
+		// TODO Auto-generated method stub
 		return delegate.readByte();
 	}
 
-	@SneakyThrows
 	@Override
-	public short readSignedShort() {
+	public short readSignedShort() throws IOException {
+		// TODO Auto-generated method stub
 		return delegate.readShort();
 	}
 
-	@SneakyThrows
 	@Override
-	public int readSignedInt() {
+	public int readSignedInt() throws IOException {
+		// TODO Auto-generated method stub
 		return delegate.readInt();
 	}
 
-	@SneakyThrows
 	@Override
-	public long readSignedLong() {
+	public long readSignedLong() throws IOException {
+		// TODO Auto-generated method stub
 		return delegate.readLong();
 	}
 
