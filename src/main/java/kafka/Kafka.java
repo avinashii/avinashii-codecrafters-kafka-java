@@ -45,7 +45,7 @@ public class Kafka {
 		
 		body.putInt(0);
 		body.put((byte) 2);
-		body.putShort((short) 3);
+		body.putShort((short) value.getErrorCode());
 		body.put((byte)((byte) topicBytes.length+1));
 		body.put(topicBytes);
 		body.put(new byte[16]);
