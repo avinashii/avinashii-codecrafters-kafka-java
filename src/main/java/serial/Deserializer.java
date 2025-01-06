@@ -54,6 +54,8 @@ public class Deserializer {
 		inputStream.readByte();
 		inputStream.readByte();
 		
+		System.out.println("Topic :" + topicName);
+		
 		value.setTopic(topicName);
 		
 		return value;
@@ -64,7 +66,6 @@ public class Deserializer {
 
 
 	private String readString() throws IOException {
-		// TODO Auto-generated method stub
 		final var length = readLength()-1;
 		
 		final var content = inputStream.readNBytes(length);
