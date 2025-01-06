@@ -50,6 +50,9 @@ public class SocketClient implements Runnable {
 				 System.out.println("Received: " + request);
 				 
 				 final var response = evaluator.evaluate(request);
+				 System.out.println("Reacjhed: ");
+				 
+
 				 
 				 serializer.write(response);
 				 outputStream.flush();
