@@ -52,6 +52,8 @@ public class Kafka {
             value.getTopic(),
             topicMetadata
         );
+        System.out.println("Here : " + body);
+
 
         // Combine header and body into the final response
         int totalSize = header.length + body.length + 1; // +1 for tag buffer
