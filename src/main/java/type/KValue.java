@@ -9,7 +9,7 @@ public class KValue {
 	private int errorCode;
 	private KValueType type;
 	private String topic;
-	private UUID TopicUUID;
+//	private UUID TopicUUID;
 	
 	public void setApiKey(int apiKey) {
 		this.apiKey = apiKey;
@@ -33,9 +33,9 @@ public class KValue {
 		this.topic = name;
 	}
 
-	public void setTopicUUID(UUID TopicUUID) {
-		this.TopicUUID = TopicUUID;
-	}
+//	public void setTopicUUID(UUID TopicUUID) {
+//		this.TopicUUID = TopicUUID;
+//	}
 
 	public String getTopic() {
         return topic;

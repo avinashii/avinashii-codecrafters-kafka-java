@@ -50,38 +50,26 @@ public class Deserializer {
         
         inputStream.readByte(); // skip tag buffer
         
+        
         final var partitionLimit = inputStream.readInt();
         
-        // Debug: Check and log the stream state
-        System.out.println("Before reading UUID:");
-        System.out.println("Available bytes in stream: " + inputStream.available());
         
-        // Read most significant bits
-        long mostSignificantBits;
-        long leastSignificantBits;
-        try {
-            mostSignificantBits = inputStream.readLong();
-            System.out.println("mostSignificantBits = " + mostSignificantBits); // Debug log
-        } catch (IOException e) {
-            throw new IOException("Failed to read mostSignificantBits", e);
-        }
         
-        // Read least significant bits
-        try {
-            leastSignificantBits = inputStream.readLong();
-            System.out.println("leastSignificantBits = " + leastSignificantBits); // Debug log
-        } catch (IOException e) {
-            throw new IOException("Failed to read leastSignificantBits", e);
-        }
-        
-        UUID topicUUID = new UUID(mostSignificantBits, leastSignificantBits);
-        System.out.println("topicUUID = " + topicUUID);
+//        long mostSignificantBits = inputStream.readLong();
+//        long leastSignificantBits = inputStream.readLong();
+//        UUID topicUUID = new UUID(mostSignificantBits, leastSignificantBits);
+//        System.out.println("messageSize = " + messageSize);
+
+
+//        System.out.println("array length = " + arrayLength);
+//        System.out.println("topicName = " + topicName);
+//        System.out.println("partitionLimit = " + partitionLimit);
 
         inputStream.readByte(); // skip cursor
         inputStream.readByte(); // skip tag buffer
 
         value.setTopic(topicName);
-        value.setTopicUUID(topicUUID);
+//        value.setTopicUUID(topicUUID);
         
         return value;
     }
