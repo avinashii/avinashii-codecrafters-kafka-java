@@ -52,12 +52,12 @@ public class Deserializer {
 
         final var partitionLimit = inputStream.readInt();
         
-        System.out.println("messageSize = " + messageSize);
-
+        
         
         long mostSignificantBits = inputStream.readLong();
         long leastSignificantBits = inputStream.readLong();
         UUID topicUUID = new UUID(mostSignificantBits, leastSignificantBits);
+        System.out.println("messageSize = " + messageSize);
 
 
 //        System.out.println("array length = " + arrayLength);
