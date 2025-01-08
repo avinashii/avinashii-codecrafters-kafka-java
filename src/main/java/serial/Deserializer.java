@@ -1,4 +1,4 @@
-package serial;
+	package serial;
 
 import type.KValue;
 import type.KValueType;
@@ -7,6 +7,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 
 public class Deserializer {
@@ -48,6 +49,11 @@ public class Deserializer {
         inputStream.readByte(); // skip tag buffer
 
         final var partitionLimit = inputStream.readInt();
+        
+        long mostSignificantBits = inputStream.readLong();
+        long leastSignificantBits = inputStream.readLong();
+        UUID topicUUID = new UUID(mostSignificantBits, leastSignificantBits);
+
 
 //        System.out.println("array length = " + arrayLength);
 //        System.out.println("topicName = " + topicName);
@@ -57,6 +63,7 @@ public class Deserializer {
         inputStream.readByte(); // skip tag buffer
 
         value.setTopic(topicName);
+        value.setTopicUUID(topicUUID);
         
         return value;
     }

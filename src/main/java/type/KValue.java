@@ -1,5 +1,7 @@
 package type;
 
+import java.util.UUID;
+
 public class KValue {
 	private int apiKey;
 	private int apiVersion;
@@ -7,6 +9,7 @@ public class KValue {
 	private int errorCode;
 	private KValueType type;
 	private String topic;
+	private UUID TopicUUID;
 	
 	public void setApiKey(int apiKey) {
 		this.apiKey = apiKey;
@@ -29,11 +32,16 @@ public class KValue {
 	public void setTopic(String name) {
 		this.topic = name;
 	}
-	
+
+	public void setTopicUUID(UUID TopicUUID) {
+		this.TopicUUID = TopicUUID;
+	}
+
 	public String getTopic() {
         return topic;
     }
 
+	
 	public KValueType getType() {
 		return type;
 	}
