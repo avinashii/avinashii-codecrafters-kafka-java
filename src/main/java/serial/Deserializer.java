@@ -27,8 +27,7 @@ public class Deserializer {
 
         parseHeader(value);
 
-        System.out.println("messageSize = " + messageSize);
-
+        
 
         return switch (value.getType()) {
             case ApiVersion -> parseApiVersion(value);
@@ -52,6 +51,9 @@ public class Deserializer {
         inputStream.readByte(); // skip tag buffer
 
         final var partitionLimit = inputStream.readInt();
+        
+        System.out.println("messageSize = " + messageSize);
+
         
         long mostSignificantBits = inputStream.readLong();
         long leastSignificantBits = inputStream.readLong();
