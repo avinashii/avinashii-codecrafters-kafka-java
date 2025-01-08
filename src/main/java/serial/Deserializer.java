@@ -27,6 +27,9 @@ public class Deserializer {
 
         parseHeader(value);
 
+        System.out.println("messageSize = " + messageSize);
+
+
         return switch (value.getType()) {
             case ApiVersion -> parseApiVersion(value);
             case DescribeTopic -> parseDescribeTopic(value);
