@@ -152,6 +152,7 @@ public class Kafka {
                     metadataMap.put(topicName, new TopicMetadata(topicUUID, partitionCount));
                 }
             }
+            System.out.println("Parsed metadata: " + metadataMap);
 
             return metadataMap;
         }
