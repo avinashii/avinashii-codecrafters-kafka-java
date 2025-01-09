@@ -1,233 +1,103 @@
 package kafka;
-
-import type.KValue;
-
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import kafka.record.Batch;
+import kafka.record.Record;
+import kafka.record.Record.Partition;
+import kafka.record.Record.Topic;
+import lombok.SneakyThrows;
+import protocol.io.DataInputStream;
 
 public class Kafka {
+	
+	private final String logsRoot;
+	private final Map<UUID, Record.Topic> topicPerId;
+	private final Map<String, Record.Topic> topicPerName;
+	private final Map<UUID, List<Record.Partition>> partitionsPerTopicId;
 
-    public byte[] evaluate(KValue value) {
 
-        return switch (value.getType()) {
-            case ApiVersion -> createApiResponse(value);
-            case DescribeTopic -> createDescribeResponse(value);
-            case Fetch -> null;
-            case Unknown -> null;
-        };
-    }
-
-    private byte[] createDescribeResponse(KValue value) {
-    	final var header = createHeader(value.getCorrelationId());
-        
-        // Parse the metadata log file
-        File metadataLogFile = new File("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log");
-        ClusterMetadataParser.TopicMetadata topicMetadata;
-
-        try {
-            Map<String, ClusterMetadataParser.TopicMetadata> metadataMap = ClusterMetadataParser.parseClusterMetadata(metadataLogFile);
-            topicMetadata = metadataMap.get(value.getTopic());
-            if (topicMetadata == null) {
-                throw new IOException("Topic not found: " + value.getTopic());
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to parse cluster metadata", e);
+	
+	
+    public Kafka(String logsRoot, List<Record.Topic> topics, List<Record.Partition> records) {
+		// TODO Auto-generated constructor stub
+    	
+    	this.logsRoot = logsRoot;
+    	this.topicPerId = topics.stream().collect(Collectors.toMap(Record.Topic::id, Function.identity()));
+    	
+    	this.topicPerName = topics.stream().collect(Collectors.toMap(Record.Topic::name, Function.identity()));
+    	
+    	this.partitionsPerTopicId = records
+                .stream()
+                .sorted(Comparator.comparing(Record.Partition::topicId))
+                .collect(Collectors.groupingBy(
+                        Record.Partition::topicId
+                ));
+    	
         }
+    
+    public Record.Topic getTopic(UUID id) {
+        return topicPerId.get(id);
 
-        // Build the response body
-        byte[] body = DescribeTopicPartitionsHandler.buildDescribeTopicPartitionsResponse(
-            value.getCorrelationId(),
-            value.getTopic(),
-            topicMetadata
-        );
-        System.out.println("Here : " + body);
-
-
-        // Combine header and body into the final response
-        int totalSize = header.length + body.length + 1; // +1 for tag buffer
-        ByteBuffer response = ByteBuffer.allocate(4 + totalSize);
-
-        response.putInt(totalSize);
-        response.put(header);
-        response.put((byte) 0); // tag buffer
-        response.put(body);
-
-        return response.array();
+    }
+    public Record.Topic getTopic(String name) {
+        return topicPerName.get(name);
+    }
+    
+    public List<Record.Partition> getPartitions(UUID topicId) {
+        return partitionsPerTopicId.getOrDefault(topicId, Collections.emptyList());
     }
 
-    private byte[] createApiResponse(KValue value) {
-        final var header = createHeader(value.getCorrelationId());
-        final var body = createBody(value);
+    
+    @SneakyThrows
+    public byte[] getRecordData(String topicName, int partitionIndex) {
+        final var path = logsRoot + "%s-%s/00000000000000000000.log".formatted(topicName, partitionIndex);
 
-        int totalSize = header.length + body.length;
-        ByteBuffer response = ByteBuffer.allocate(4 + totalSize);
-
-        response.putInt(totalSize);
-        response.put(header);
-        response.put(body);
-
-        return response.array();
-    }
-
-    private byte[] createHeader(int correlationId) {
-        ByteBuffer header = ByteBuffer.allocate(4);
-        header.putInt(correlationId);
-
-        return header.array();
-    }
-
-    private byte[] createDescribeBody(KValue value) {
-        byte[] topicBytes = value.getTopic().getBytes(StandardCharsets.UTF_8);
-
-        int bodySize = 33 + topicBytes.length;
-        ByteBuffer body = ByteBuffer.allocate(bodySize);
-                body.putInt(0); // throttle time 4 bytes
-        body.put((byte) 2); // array length 1 byte
-        body.putShort((short) 0); // errorCode 2 bytes
-        body.put((byte) ((byte) topicBytes.length + 1)); // 1 byte
-        body.put(topicBytes); // topic length bytes
-        body.put((byte) 0); // 1 byte
-        body.put((byte) 1); // 1 byte
-        body.putInt(0x00000DF8); // 4 bytes
-        body.put((byte) 0); // tag buffer 1 byte
-        body.put((byte) 0xFF); // cursor 1 byte
-        body.put((byte) 0); // tag buffer 1 byte
-
-        return body.array();
-    }
-
-    private byte[] createBody(KValue value) {
-        final var errorCode = value.getErrorCode();
-
-        ByteBuffer body = ByteBuffer.allocate(28);
-        body.putShort((short) errorCode);
-
-        if (errorCode == 0) {
-            final var apiKey = value.getApiKey();
-            final var apiVersion = value.getApiVersion();
-
-            body.put((byte) 3);
-            body.putShort((short) apiKey);
-            body.putShort((short) 2);
-            body.putShort((short) apiVersion);
-            body.put((byte) 0);
-            body.putShort((short) 75);
-            body.putShort((short) 0);
-            body.putShort((short) 0);
-            body.put((byte) 0);
-            body.putInt(0);
-            body.put((byte) 0);
+        try (final var fileInputStream = new FileInputStream(path)) {
+            return fileInputStream.readAllBytes();
         }
-
-        int position = body.position();
-        byte[] bodyBytes = new byte[position];
-        body.flip();
-        body.get(bodyBytes);
-
-        return bodyBytes;
     }
-    public class ClusterMetadataParser {
 
-        public static Map<String, TopicMetadata> parseClusterMetadata(File logFile) throws IOException {
-            Map<String, TopicMetadata> metadataMap = new HashMap<>();
 
-            try (BufferedReader reader = new BufferedReader(new FileReader(logFile))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    String[] parts = line.split(","); // Adjust format based on actual log file structure
-                    String topicName = parts[0];
-                    UUID topicUUID = UUID.fromString(parts[1]);
-                    int partitionCount = Integer.parseInt(parts[2]);
+	@SneakyThrows
+    public static Kafka load(String logsRoot) {
+//    	System.out.println("H");
+    	
+    	final var path = logsRoot + "__cluster_metadata-0/00000000000000000000.log";
 
-                    metadataMap.put(topicName, new TopicMetadata(topicUUID, partitionCount));
+		try (final var fileInputStream = new FileInputStream(path)) {
+             System.out.println(HexFormat.ofDelimiter("").formatHex(fileInputStream.readAllBytes()));
+         }
+		
+		final var  topics = new ArrayList<Record.Topic>();
+		final var partitions = new ArrayList<Record.Partition>();
+		
+		try (final var fileInputStream = new FileInputStream(path)) {
+            final var input = new DataInputStream(fileInputStream);
+
+            while (fileInputStream.available() != 0) {
+                final var batch = Batch.deserialize(input);
+                System.out.println(batch);
+                
+                
+                for (final var record : batch.records()) {
+                    if (record instanceof Record.Topic topic) {
+                        topics.add(topic);
+                    } else if (record instanceof Record.Partition partition) {
+                        partitions.add(partition);
+                    }
                 }
             }
-            System.out.println("Parsed metadata: " + metadataMap);
-
-            return metadataMap;
-        }
-
-        public static class TopicMetadata {
-            private final UUID topicUUID;
-            private final int partitionCount;
-
-            public TopicMetadata(UUID topicUUID, int partitionCount) {
-                this.topicUUID = topicUUID;
-                this.partitionCount = partitionCount;
-            }
-
-            public UUID getTopicUUID() {
-                return topicUUID;
-            }
-
-            public int getPartitionCount() {
-                return partitionCount;
-            }
-        }
+		}
+		return new Kafka(logsRoot, topics, partitions);
     }
-  
-
-    public class DescribeTopicPartitionsHandler {
-
-        public static byte[] buildDescribeTopicPartitionsResponse(int correlationId, String topicName, ClusterMetadataParser.TopicMetadata metadata) {
-            ByteArrayOutputStream responseStream = new ByteArrayOutputStream();
-
-            try (DataOutputStream dataOut = new DataOutputStream(responseStream)) {
-                // Write response header
-                dataOut.writeInt(0); // Placeholder for message length
-                dataOut.writeInt(correlationId); // Correlation ID
-
-                // Write response body
-                dataOut.writeShort(0); // Error code (0 = success)
-                dataOut.writeUTF(topicName); // Topic name
-                dataOut.writeLong(metadata.getTopicUUID().getMostSignificantBits());
-                dataOut.writeLong(metadata.getTopicUUID().getLeastSignificantBits());
-
-                // Partition information
-                dataOut.writeInt(metadata.getPartitionCount()); // Partition count (assume 1 for this example)
-                dataOut.writeInt(0); // Partition index
-                dataOut.writeShort(0); // Partition error code
-
-                // Update message length
-                byte[] responseBytes = responseStream.toByteArray();
-                int messageLength = responseBytes.length - 4;
-                System.arraycopy(ByteBuffer.allocate(4).putInt(messageLength).array(), 0, responseBytes, 0, 4);
-
-                return responseBytes;
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to build DescribeTopicPartitions response", e);
-            }
-        }
-
-        public static void handleDescribeTopicPartitionsRequest(InputStream requestStream, OutputStream responseStream, File metadataLogFile) throws IOException {
-            DataInputStream dataIn = new DataInputStream(requestStream);
-
-            int correlationId = dataIn.readInt();
-            String topicName = dataIn.readUTF();
-
-            Map<String, ClusterMetadataParser.TopicMetadata> metadataMap = ClusterMetadataParser.parseClusterMetadata(metadataLogFile);
-            ClusterMetadataParser.TopicMetadata metadata = metadataMap.get(topicName);
-
-            if (metadata == null) {
-                throw new IOException("Topic not found: " + topicName);
-            }
-
-            byte[] response = buildDescribeTopicPartitionsResponse(correlationId, topicName, metadata);
-            responseStream.write(response);
-        }
-    }
-
-
 }
